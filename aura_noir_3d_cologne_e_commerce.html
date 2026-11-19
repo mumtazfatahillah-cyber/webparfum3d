@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AURA NOIR — Maison de Parfum | 3D Interactive Boutique</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Cormorant Garamond (Luxury Serif) & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            obsidian: '#0B0B0D',
+            charcoal: '#141418',
+            card: '#1B1B21',
+            gold: {
+              300: '#F3E5AB',
+              400: '#D4AF37',
+              500: '#C5A059',
+              600: '#9E7B36',
+            },
+            cream: '#F5F2EB'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar untuk panel e-commerce */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0B0B0D;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2C2C35;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #C5A059;
+    }
+
+    /* Mencegah seleksi teks saat memutar objek 3D */
+    #canvas-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+      touch-action: none;
+      cursor: grab;
+    }
+    #canvas-container canvas:active {
+      cursor: grabbing;
+    }
+
+    .glass-panel {
+      background: rgba(20, 20, 24, 0.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(197, 160, 89, 0.22);
+    }
+
+    @keyframes pulseSlow {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.85; }
+    }
+    .animate-pulse-slow {
+      animation: pulseSlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+
+  <!-- Importmap Three.js & Addons -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body class="bg-obsidian text-cream font-sans antialiased selection:bg-gold-500 selection:text-obsidian overflow-x-hidden">
+
+  <!-- Toast Notification (Pengganti alert) -->
+  <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-all duration-300 transform -translate-y-3">
+    <div class="glass-panel px-5 py-3 rounded-full shadow-2xl flex items-center gap-3 border border-gold-500/40">
+      <i data-lucide="sparkles" class="w-4 h-4 text-gold-400"></i>
+      <span id="toast-message" class="text-sm font-medium text-cream">Item ditambahkan ke keranjang</span>
+    </div>
+  </div>
+
+  <!-- Top Navigation Bar -->
+  <header class="fixed top-0 left-0 right-0 z-30 h-16 px-4 sm:px-8 flex items-center justify-between border-b border-white/10 bg-obsidian/80 backdrop-blur-md">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full border border-gold-500/60 flex items-center justify-center bg-gold-500/10">
+        <span class="font-serif text-gold-400 font-bold text-lg">A</span>
+      </div>
+      <div>
+        <h1 class="font-serif text-xl sm:text-2xl tracking-[0.18em] font-semibold text-cream leading-none">AURA NOIR</h1>
+        <p class="text-[10px] tracking-[0.28em] uppercase text-gold-400/80 mt-0.5">Maison de Parfum</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 sm:gap-5">
+      <span class="hidden md:inline-flex items-center gap-1.5 text-xs text-neutral-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        Interactive 3D Studio
+      </span>
+      <button id="cart-btn" class="relative p-2.5 rounded-full bg-card hover:bg-white/10 border border-white/10 transition flex items-center gap-2">
+        <i data-lucide="shopping-bag" class="w-5 h-5 text-gold-400"></i>
+        <span class="hidden sm:inline text-xs font-medium tracking-wider uppercase">Tas Belanja</span>
+        <span id="cart-badge" class="w-5 h-5 rounded-full bg-gold-500 text-obsidian text-xs font-bold flex items-center justify-center">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Layout: Split Screen di Desktop (lg:flex-row), Stacked di Mobile -->
+  <main class="pt-16 min-h-screen lg:h-screen flex flex-col lg:flex-row lg:overflow-hidden">
+    
+    <!-- KOLOM KIRI: 3D PRODUCT VIEWER -->
+    <section class="relative w-full lg:w-[54%] xl:w-[58%] h-[52vh] sm:h-[58vh] lg:h-full bg-gradient-to-b from-[#15151B] via-[#0E0E12] to-[#08080A] flex-shrink-0 border-b lg:border-b-0 lg:border-r border-white/10 overflow-hidden">
+      
+      <!-- Radial Ambient Glow di belakang botol -->
+      <div id="ambient-glow" class="absolute inset-0 pointer-events-none transition-colors duration-700"
+           style="background: radial-gradient(circle at 50% 48%, rgba(212, 175, 55, 0.14) 0%, rgba(11, 11, 13, 0) 65%);">
+      </div>
+
+      <!-- Loading Indicator -->
+      <div id="loader-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-obsidian transition-opacity duration-500">
+        <div class="w-10 h-10 border-2 border-gold-500/30 border-t-gold-400 rounded-full animate-spin mb-3"></div>
+        <p class="text-xs tracking-[0.2em] uppercase text-gold-400">Menyiapkan Studio 3D...</p>
+      </div>
+
+      <!-- Canvas Container -->
+      <div id="canvas-container" class="w-full h-full"></div>
+
+      <!-- Petunjuk Interaksi Atas Kiri -->
+      <div class="absolute top-4 left-4 sm:top-6 sm:left-6 pointer-events-none flex flex-col gap-2">
+        <div class="glass-panel px-3.5 py-2 rounded-xl inline-flex items-center gap-2.5 text-xs text-neutral-300">
+          <i data-lucide="rotate-3d" class="w-4 h-4 text-gold-400 shrink-0"></i>
+          <span>Geser untuk memutar 360° • Scroll/Cubit untuk zoom</span>
+        </div>
+      </div>
+
+      <!-- Badge Varian Aktif di Sudut Kanan Atas 3D -->
+      <div class="hidden sm:flex absolute top-6 right-6 pointer-events-none flex-col items-end">
+        <span class="text-[10px] tracking-[0.25em] uppercase text-neutral-400">Extrait de Cologne</span>
+        <span id="viewer-variant-label" class="font-serif text-lg text-gold-300 italic">Velvet Oud & Amber</span>
+      </div>
+
+      <!-- Kontrol Kamera Cepat di Bawah Tengah -->
+      <div class="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-10 w-[92%] sm:w-auto flex justify-center">
+        <div class="glass-panel p-1.5 rounded-2xl flex items-center gap-1 sm:gap-1.5 shadow-2xl">
+          <button data-cam="front" class="cam-btn px-3 py-2 rounded-xl text-xs font-medium bg-gold-500 text-obsidian transition flex items-center gap-1.5">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+            <span>Depan</span>
+          </button>
+          <button data-cam="cap" class="cam-btn px-3 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:text-white hover:bg-white/10 transition flex items-center gap-1.5">
+            <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+            <span>Detail Tutup</span>
+          </button>
+          <button data-cam="angle" class="cam-btn px-3 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:text-white hover:bg-white/10 transition flex items-center gap-1.5">
+            <i data-lucide="box" class="w-3.5 h-3.5"></i>
+            <span>Perspektif</span>
+          </button>
+          <div class="w-px h-5 bg-white/15 mx-0.5"></div>
+          <button id="toggle-rotate-btn" class="px-3 py-2 rounded-xl text-xs font-medium text-gold-400 hover:bg-white/10 transition flex items-center gap-1.5" title="Putar Otomatis">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin" style="animation-duration: 6s;"></i>
+            <span class="hidden sm:inline">Auto</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- KOLOM KANAN: INFORMASI PRODUK & E-COMMERCE (SCROLLABLE) -->
+    <section class="w-full lg:w-[46%] xl:w-[42%] lg:h-full lg:overflow-y-auto bg-obsidian px-5 py-7 sm:px-9 sm:py-9">
+      <div class="max-w-xl mx-auto space-y-7 pb-12">
+
+        <!-- Header Produk -->
+        <div>
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <span id="product-family" class="text-xs font-semibold tracking-[0.22em] uppercase text-gold-400">
+              Woody Oriental
+            </span>
+            <div class="flex items-center gap-1 text-xs text-neutral-300">
+              <i data-lucide="star" class="w-3.5 h-3.5 fill-gold-400 text-gold-400"></i>
+              <span class="font-semibold">4.9</span>
+              <span class="text-neutral-500">(128 ulasan)</span>
+            </div>
+          </div>
+
+          <h2 id="product-title" class="font-serif text-3xl sm:text-4xl font-semibold text-cream tracking-tight">
+            Velvet Oud & Amber
+          </h2>
+          <p id="product-tagline" class="text-sm text-gold-300/90 italic font-serif text-lg mt-0.5">
+            "Hangat, misterius, dan memikat dalam balutan kayu gaharu."
+          </p>
+
+          <div class="mt-4 flex items-baseline gap-3">
+            <span id="product-price" class="text-2xl sm:text-3xl font-semibold text-cream">Rp 1.350.000</span>
+            <span id="product-concentration" class="text-xs text-neutral-400 px-2.5 py-1 rounded-md bg-white/5 border border-white/10">
+              Extrait de Cologne • 100 ml
+            </span>
+          </div>
+        </div>
+
+        <!-- 1. PILIH VARIAN AROMA -->
+        <div class="space-y-3 pt-2 border-t border-white/10">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-semibold tracking-[0.16em] uppercase text-neutral-400">Pilih Koleksi Aroma</label>
+            <span class="text-xs text-gold-400">3 Varian Tersedia</span>
+          </div>
+          
+          <div id="variant-selector" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <!-- Di-render dinamis oleh JS -->
+          </div>
+        </div>
+
+        <!-- Deskripsi Karakter -->
+        <p id="product-description" class="text-sm leading-relaxed text-neutral-300">
+          Perpaduan mewah kayu gaharu (oud) berusia matang dengan kehangatan resin amber dan sentuhan rempah eksotis. Dirancang untuk meninggalkan kesan elegan yang tak terlupakan sepanjang malam.
+        </p>
+
+        <!-- 2. KARAKTERISTIK WANGI (PIRAMIDA AROMA & PERFORMA) -->
+        <div class="bg-charcoal/90 border border-white/10 rounded-2xl p-5 space-y-5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-serif text-xl font-semibold text-cream flex items-center gap-2">
+              <i data-lucide="wind" class="w-4 h-4 text-gold-400"></i>
+              Arsitektur Aroma (Olfactory Notes)
+            </h3>
+            <span id="product-occasion" class="text-[11px] px-2.5 py-1 rounded-full bg-gold-500/15 text-gold-300 border border-gold-500/30">
+              Malam & Formal
+            </span>
+          </div>
+
+          <!-- Piramida Aroma: Top, Heart, Base -->
+          <div class="space-y-3">
+            <div class="p-3 rounded-xl bg-obsidian/70 border border-white/5 flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <i data-lucide="sun" class="w-4 h-4 text-gold-400"></i>
+              </div>
+              <div>
+                <p class="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold">Top Notes (Kesan Awal • 0–15 Menit)</p>
+                <p id="notes-top" class="text-sm text-cream font-medium mt-0.5">Pink Pepper, Cardamom, Bergamot</p>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-obsidian/70 border border-white/5 flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <i data-lucide="flower-2" class="w-4 h-4 text-gold-400"></i>
+              </div>
+              <div>
+                <p class="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold">Heart Notes (Karakter Inti • 2–4 Jam)</p>
+                <p id="notes-heart" class="text-sm text-cream font-medium mt-0.5">Damask Rose, Agarwood (Oud), Incense</p>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-obsidian/70 border border-white/5 flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <i data-lucide="flame" class="w-4 h-4 text-gold-400"></i>
+              </div>
+              <div>
+                <p class="text-[11px] uppercase tracking-wider text-neutral-400 font-semibold">Base Notes (Jejak Akhir • 8+ Jam)</p>
+                <p id="notes-base" class="text-sm text-cream font-medium mt-0.5">Warm Amber, Sandalwood, Madagascar Vanilla</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bar Indikator Performa -->
+          <div class="pt-2 border-t border-white/10 grid grid-cols-3 gap-3">
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-neutral-400">Ketahanan</span>
+                <span id="stat-longevity-text" class="text-gold-300 font-medium">10-12 Jam</span>
+              </div>
+              <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <div id="stat-longevity-bar" class="h-full bg-gold-400 rounded-full transition-all duration-500" style="width: 92%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-neutral-400">Jejak (Sillage)</span>
+                <span id="stat-sillage-text" class="text-gold-300 font-medium">Kuat</span>
+              </div>
+              <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <div id="stat-sillage-bar" class="h-full bg-gold-400 rounded-full transition-all duration-500" style="width: 85%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-neutral-400">Intensitas</span>
+                <span id="stat-projection-text" class="text-gold-300 font-medium">Tinggi</span>
+              </div>
+              <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <div id="stat-projection-bar" class="h-full bg-gold-400 rounded-full transition-all duration-500" style="width: 88%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. PILIHAN UKURAN BOTOL (Mengubah skala botol 3D) -->
+        <div class="space-y-3">
+          <label class="text-xs font-semibold tracking-[0.16em] uppercase text-neutral-400 block">
+            Ukuran Botol <span class="text-neutral-500 normal-case font-normal">(Ukuran botol 3D menyesuaikan)</span>
+          </label>
+          <div class="grid grid-cols-2 gap-3">
+            <button type="button" data-size="50" class="size-btn p-3.5 rounded-xl border border-white/15 bg-card hover:border-gold-500/60 transition text-left flex items-center justify-between">
+              <div>
+                <p class="font-semibold text-sm text-cream">50 ml</p>
+                <p class="text-xs text-neutral-400">Travel & Daily Flacon</p>
+              </div>
+              <span class="text-xs font-medium text-gold-400">Rp 850rb</span>
+            </button>
+
+            <button type="button" data-size="100" class="size-btn p-3.5 rounded-xl border-2 border-gold-500 bg-gold-500/10 transition text-left flex items-center justify-between">
+              <div>
+                <p class="font-semibold text-sm text-cream">100 ml</p>
+                <p class="text-xs text-gold-300/80">Signature Full Flacon</p>
+              </div>
+              <span class="text-xs font-medium text-gold-400">Rp 1.35jt</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. KUSTOMISASI UKIR NAMA (ENGRAVING REAL-TIME PADA LABEL 3D) -->
+        <div class="bg-card/80 border border-white/10 rounded-2xl p-4 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label for="engraving-input" class="text-xs font-semibold tracking-[0.14em] uppercase text-gold-300 flex items-center gap-1.5">
+              <i data-lucide="pen-tool" class="w-3.5 h-3.5 text-gold-400"></i>
+              Gratis Ukir Inisial / Nama di Botol
+            </label>
+            <span id="engraving-counter" class="text-[11px] text-neutral-500">0/16</span>
+          </div>
+          <input 
+            id="engraving-input" 
+            type="text" 
+            maxlength="16" 
+            placeholder="Contoh: R. PRATAMA (Tampil langsung di botol 3D)"
+            class="w-full bg-obsidian border border-white/15 focus:border-gold-500 rounded-xl px-3.5 py-2.5 text-sm text-cream placeholder-neutral-500 outline-none transition"
+          />
+        </div>
+
+        <!-- 5. QUANTITY & ADD TO CART -->
+        <div class="pt-2 flex flex-col sm:flex-row gap-3">
+          <!-- Pengatur Jumlah -->
+          <div class="flex items-center justify-between sm:justify-center bg-card border border-white/15 rounded-xl px-3 py-2.5 sm:w-36">
+            <button id="qty-minus" type="button" class="p-1.5 text-neutral-400 hover:text-white transition">
+              <i data-lucide="minus" class="w-4 h-4"></i>
+            </button>
+            <span id="qty-value" class="font-semibold text-base w-8 text-center">1</span>
+            <button id="qty-plus" type="button" class="p-1.5 text-neutral-400 hover:text-white transition">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Tombol Beli -->
+          <button id="add-to-cart-btn" type="button" class="flex-1 bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-400 hover:to-gold-300 text-obsidian font-semibold py-3.5 px-6 rounded-xl shadow-lg shadow-gold-500/20 transition transform active:scale-[0.99] flex items-center justify-center gap-2.5">
+            <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+            <span>Tambah ke Keranjang</span>
+          </button>
+        </div>
+
+        <!-- Jaminan Layanan -->
+        <div class="grid grid-cols-3 gap-2 pt-3 border-t border-white/10 text-center">
+          <div class="p-2">
+            <i data-lucide="shield-check" class="w-4 h-4 text-gold-400 mx-auto mb-1"></i>
+            <p class="text-[11px] text-neutral-400">100% Original IFRA Certified</p>
+          </div>
+          <div class="p-2">
+            <i data-lucide="gift" class="w-4 h-4 text-gold-400 mx-auto mb-1"></i>
+            <p class="text-[11px] text-neutral-400">Gratis 2 Vial Sampel 2ml</p>
+          </div>
+          <div class="p-2">
+            <i data-lucide="truck" class="w-4 h-4 text-gold-400 mx-auto mb-1"></i>
+            <p class="text-[11px] text-neutral-400">Pengiriman Berasuransi</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- DRAWER KERANJANG BELANJA (SHOPPING CART) -->
+  <div id="cart-backdrop" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 hidden opacity-0 transition-opacity duration-300"></div>
+  <aside id="cart-drawer" class="fixed top-0 right-0 bottom-0 w-full max-w-md bg-charcoal border-l border-white/15 z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+    <!-- Header Drawer -->
+    <div class="p-5 border-b border-white/10 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <i data-lucide="shopping-bag" class="w-5 h-5 text-gold-400"></i>
+        <h3 class="font-serif text-2xl font-semibold text-cream">Tas Belanja Anda</h3>
+      </div>
+      <button id="close-cart-btn" class="p-2 rounded-full hover:bg-white/10 text-neutral-400 hover:text-white transition">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Daftar Item Keranjang -->
+    <div id="cart-items-container" class="flex-1 overflow-y-auto p-5 space-y-4">
+      <!-- Diisi dinamis oleh JS -->
+    </div>
+
+    <!-- Footer Checkout -->
+    <div class="p-5 border-t border-white/10 bg-obsidian space-y-4">
+      <div class="space-y-1.5 text-sm">
+        <div class="flex justify-between text-neutral-400">
+          <span>Pengiriman Ekspres & Asuransi</span>
+          <span class="text-emerald-400">Gratis</span>
+        </div>
+        <div class="flex justify-between text-base font-semibold text-cream pt-1">
+          <span>Total Pembayaran</span>
+          <span id="cart-total-price" class="text-gold-400 text-lg">Rp 0</span>
+        </div>
+      </div>
+
+      <button id="checkout-btn" class="w-full py-3.5 px-5 rounded-xl bg-gold-500 hover:bg-gold-400 disabled:opacity-40 disabled:cursor-not-allowed text-obsidian font-semibold transition flex items-center justify-center gap-2">
+        <span>Lanjutkan ke Pembayaran</span>
+        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MODAL KONFIRMASI CHECKOUT -->
+  <div id="checkout-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+    <div class="bg-charcoal border border-gold-500/40 rounded-3xl max-w-md w-full p-6 sm:p-8 text-center space-y-4 shadow-2xl">
+      <div class="w-14 h-14 rounded-full bg-gold-500/15 border border-gold-500/40 flex items-center justify-center mx-auto">
+        <i data-lucide="check-circle-2" class="w-8 h-8 text-gold-400"></i>
+      </div>
+      <h3 class="font-serif text-2xl sm:text-3xl font-semibold text-cream">Pesanan Diterima</h3>
+      <p class="text-sm text-neutral-300 leading-relaxed">
+        Terima kasih telah berbelanja di <span class="text-gold-400 font-semibold">AURA NOIR</span>. Tim peracik kami akan segera menyiapkan botol cologne pilihan beserta ukiran khusus Anda.
+      </p>
+      <div class="bg-obsidian/80 rounded-xl p-3 text-xs text-neutral-400 border border-white/10">
+        Nomor Referensi: <span id="order-ref" class="text-gold-300 font-mono font-semibold">#AN-88291</span>
+      </div>
+      <button id="close-modal-btn" class="w-full py-3 rounded-xl bg-gold-500 hover:bg-gold-400 text-obsidian font-semibold text-sm transition">
+        Kembali ke Butik 3D
+      </button>
+    </div>
+  </div>
+
+  <!-- SCRIPT UTAMA: DATA E-COMMERCE & THREE.JS 3D ENGINE -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+    // Inisialisasi Ikon Lucide
+    lucide.createIcons();
+
+    // ==========================================
+    // 1. DATA PRODUK COLOGNE
+    // ==========================================
+    const COLOGNE_VARIANTS = [
+      {
+        id: 'velvet-oud',
+        name: 'Velvet Oud & Amber',
+        shortName: 'Velvet Oud',
+        family: 'Woody Oriental',
+        tagline: '"Hangat, misterius, dan memikat dalam balutan kayu gaharu."',
+        description: 'Perpaduan mewah kayu gaharu (oud) berusia matang dengan kehangatan resin amber dan sentuhan rempah eksotis. Dirancang untuk meninggalkan kesan elegan yang tak terlupakan sepanjang malam.',
+        occasion: 'Malam & Formal',
+        notes: {
+          top: 'Pink Pepper, Cardamom, Calabrian Bergamot',
+          heart: 'Damask Rose, Aged Agarwood (Oud), Incense',
+          base: 'Warm Amber, Mysore Sandalwood, Vanilla Bean'
+        },
+        stats: {
+          longevity: { text: '10–12 Jam', pct: 94 },
+          sillage: { text: 'Kuat', pct: 88 },
+          projection: { text: 'Tinggi', pct: 90 }
+        },
+        // Properti Visual 3D
+        liquidColor: 0xb86b11,      // Amber keemasan pekat
+        liquidAttenuation: 0xd9821b,
+        capColor: 0xd4af37,         // Emas klasik
+        labelAccent: '#D4AF37',
+        glowColor: 'rgba(212, 175, 55, 0.16)',
+        swatchHex: '#C87D20'
+      },
+      {
+        id: 'bergamot-sea',
+        name: 'Bergamot & Sea Salt',
+        shortName: 'Bergamot Sea',
+        family: 'Fresh Citrus Aquatic',
+        tagline: '"Kesegaran angin laut Mediterania yang bersih, jernih, dan berenergi."',
+        description: 'Komposisi menyegarkan dari petikan pertama jeruk bergamot Italia yang berpadu dengan mineral garam laut dan kayu cedar putih. Ideal untuk aktivitas siang hari yang dinamis.',
+        occasion: 'Siang & Kasual',
+        notes: {
+          top: 'Italian Bergamot, Sicilian Lemon, Sea Salt',
+          heart: 'Neroli Blossom, Rosemary, Sage Leaf',
+          base: 'White Cedarwood, Driftwood, Clean Musk'
+        },
+        stats: {
+          longevity: { text: '7–9 Jam', pct: 76 },
+          sillage: { text: 'Moderat', pct: 72 },
+          projection: { text: 'Segar', pct: 78 }
+        },
+        // Properti Visual 3D
+        liquidColor: 0x3898b8,      // Biru kristal akuatik
+        liquidAttenuation: 0x67c3e0,
+        capColor: 0xcfd6dc,         // Perak Platinum
+        labelAccent: '#7DD3FC',
+        glowColor: 'rgba(56, 152, 184, 0.16)',
+        swatchHex: '#3898B8'
+      },
+      {
+        id: 'saffron-tonka',
+        name: 'Saffron & Roasted Tonka',
+        shortName: 'Saffron Tonka',
+        family: 'Spicy Gourmand',
+        tagline: '"Kehangatan rempah saffron merah dan kacang tonka panggang yang adiktif."',
+        description: 'Aroma berkarakter berani yang memadukan kelopak saffron langka, kulit suede lembut, dan manisnya kacang tonka panggang. Memberikan aura percaya diri dan karismatik.',
+        occasion: 'Sore & Acara Spesial',
+        notes: {
+          top: 'Red Saffron, Nutmeg, Blood Orange',
+          heart: 'Roasted Tonka Bean, Suede Leather, Iris',
+          base: 'Smoky Vetiver, Guaiac Wood, Benzoin'
+        },
+        stats: {
+          longevity: { text: '9–11 Jam', pct: 89 },
+          sillage: { text: 'Kuat', pct: 84 },
+          projection: { text: 'Tinggi', pct: 86 }
+        },
+        // Properti Visual 3D
+        liquidColor: 0x9e2a2b,      // Merah ruby kecokelatan
+        liquidAttenuation: 0xc94a4a,
+        capColor: 0x222226,         // Hitam Obsidian Matte
+        labelAccent: '#E07A5F',
+        glowColor: 'rgba(180, 55, 55, 0.16)',
+        swatchHex: '#9E2A2B'
+      }
+    ];
+
+    const SIZE_PRICING = {
+      50: { price: 850000, scaleY: 0.84, scaleXZ: 0.90 },
+      100: { price: 1350000, scaleY: 1.0, scaleXZ: 1.0 }
+    };
+
+    // State Aplikasi
+    let state = {
+      variantIndex: 0,
+      size: 100,
+      engraving: '',
+      quantity: 1,
+      cart: []
+    };
+
+    // Helper Format Rupiah
+    function formatRupiah(angka) {
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0
+      }).format(angka);
+    }
+
+    // ==========================================
+    // 2. SETUP SCENE THREE.JS & 3D BOTTLE BUILDER
+    // ==========================================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+
+    // Kamera
+    const camera = new THREE.PerspectiveCamera(
+      36,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      100
+    );
+    camera.position.set(0, 1.4, 7.2);
+
+    // Renderer dengan Tone Mapping untuk hasil kaca & logam realistis
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    // Environment Map (Pantulan Studio Realistis untuk Kaca & Logam)
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    const envRT = pmremGenerator.fromScene(roomEnv, 0.04);
+    scene.environment = envRT.texture;
+    scene.environmentIntensity = 0.85;
+
+    // Pencahayaan Studio
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xfff5e4, 2.2);
+    keyLight.position.set(4, 7, 5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.SpotLight(0xd4af37, 4.0);
+    rimLight.position.set(-4.5, 5, -4);
+    rimLight.angle = Math.PI / 4;
+    rimLight.penumbra = 0.8;
+    scene.add(rimLight);
+
+    const fillLight = new THREE.DirectionalLight(0xc2d8ff, 0.9);
+    fillLight.position.set(-5, 2, 4);
+    scene.add(fillLight);
+
+    // Pedestal / Panggung Minimalis di bawah botol
+    const pedestalGroup = new THREE.Group();
+    const pedestalGeo = new THREE.CylinderGeometry(1.75, 1.9, 0.22, 64);
+    const pedestalMat = new THREE.MeshStandardMaterial({
+      color: 0x16161b,
+      roughness: 0.25,
+      metalness: 0.6
+    });
+    const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
+    pedestal.position.y = -1.72;
+    pedestal.receiveShadow = true;
+    pedestalGroup.add(pedestal);
+
+    // Cincin Emas Tipis di Pedestal
+    const ringGeo = new THREE.TorusGeometry(1.76, 0.015, 16, 100);
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      roughness: 0.2,
+      metalness: 0.9
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = -1.61;
+    pedestalGroup.add(ring);
+    scene.add(pedestalGroup);
+
+    // ==========================================
+    // 3. MEMBUAT TEKSTUR LABEL DINAMIS (HTML5 CANVAS)
+    // ==========================================
+    const labelCanvas = document.createElement('canvas');
+    labelCanvas.width = 512;
+    labelCanvas.height = 640;
+    const labelCtx = labelCanvas.getContext('2d');
+    const labelTexture = new THREE.CanvasTexture(labelCanvas);
+    labelTexture.colorSpace = THREE.SRGBColorSpace;
+    labelTexture.anisotropy = 4;
+
+    function updateBottleLabelTexture() {
+      const variant = COLOGNE_VARIANTS[state.variantIndex];
+      const w = labelCanvas.width;
+      const h = labelCanvas.height;
+
+      // Latar kertas label hitam bertekstur halus
+      labelCtx.fillStyle = '#101014';
+      labelCtx.fillRect(0, 0, w, h);
+
+      // Bingkai emas ganda
+      labelCtx.strokeStyle = variant.labelAccent;
+      labelCtx.lineWidth = 6;
+      labelCtx.strokeRect(24, 24, w - 48, h - 48);
+
+      labelCtx.strokeStyle = 'rgba(255,255,255,0.22)';
+      labelCtx.lineWidth = 2;
+      labelCtx.strokeRect(36, 36, w - 72, h - 72);
+
+      // Nama Brand
+      labelCtx.fillStyle = '#F5F2EB';
+      labelCtx.font = '600 44px "Cormorant Garamond", Georgia, serif';
+      labelCtx.textAlign = 'center';
+      labelCtx.fillText('AURA NOIR', w / 2, 125);
+
+      labelCtx.fillStyle = variant.labelAccent;
+      labelCtx.font = '500 16px "Plus Jakarta Sans", sans-serif';
+      labelCtx.fillText('MAISON DE PARFUM • PARIS', w / 2, 158);
+
+      // Garis pemisah tipis
+      labelCtx.beginPath();
+      labelCtx.moveTo(140, 195);
+      labelCtx.lineTo(w - 140, 195);
+      labelCtx.strokeStyle = variant.labelAccent;
+      labelCtx.lineWidth = 2;
+      labelCtx.stroke();
+
+      // Nama Varian Parfum (Auto wrap jika panjang)
+      labelCtx.fillStyle = '#FFFFFF';
+      labelCtx.font = 'italic 600 42px "Cormorant Garamond", Georgia, serif';
+      const words = variant.name.split(' ');
+      if (words.length > 2) {
+        const line1 = words.slice(0, 2).join(' ');
+        const line2 = words.slice(2).join(' ');
+        labelCtx.fillText(line1, w / 2, 275);
+        labelCtx.fillText(line2, w / 2, 325);
+      } else {
+        labelCtx.fillText(variant.name, w / 2, 295);
+      }
+
+      // Kategori Aroma
+      labelCtx.fillStyle = '#A3A3A3';
+      labelCtx.font = '400 18px "Plus Jakarta Sans", sans-serif';
+      labelCtx.fillText(variant.family.toUpperCase(), w / 2, 385);
+
+      // Custom Engraving (Jika user mengetik nama)
+      if (state.engraving.trim().length > 0) {
+        labelCtx.fillStyle = 'rgba(212, 175, 55, 0.14)';
+        labelCtx.fillRect(75, 425, w - 150, 54);
+        labelCtx.strokeStyle = variant.labelAccent;
+        labelCtx.lineWidth = 1.5;
+        labelCtx.strokeRect(75, 425, w - 150, 54);
+
+        labelCtx.fillStyle = variant.labelAccent;
+        labelCtx.font = '600 22px "Cormorant Garamond", Georgia, serif';
+        labelCtx.fillText(state.engraving.trim().toUpperCase(), w / 2, 460);
+      }
+
+      // Konsentrasi & Volume di bagian bawah
+      labelCtx.fillStyle = '#D4D4D8';
+      labelCtx.font = '500 17px "Plus Jakarta Sans", sans-serif';
+      labelCtx.fillText(`EXTRAIT DE COLOGNE  •  ${state.size} ML`, w / 2, 555);
+
+      labelTexture.needsUpdate = true;
+    }
+
+    // ==========================================
+    // 4. MERAKIT MODEL 3D BOTOL COLOGNE PROSEDURAL
+    // ==========================================
+    const bottleGroup = new THREE.Group();
+    scene.add(bottleGroup);
+
+    // Helper untuk membuat Rounded Box Geometry
+    function createRoundedBox(width, height, depth, radius, smoothness) {
+      const shape = new THREE.Shape();
+      const eps = 0.00001;
+      const r = radius - eps;
+      shape.absarc(eps, eps, eps, -Math.PI / 2, -Math.PI, true);
+      shape.absarc(eps, height - r * 2, eps, Math.PI, Math.PI / 2, true);
+      shape.absarc(width - r * 2, height - r * 2, eps, Math.PI / 2, 0, true);
+      shape.absarc(width - r * 2, eps, eps, 0, -Math.PI / 2, true);
+
+      const geometry = new THREE.ExtrudeGeometry(shape, {
+        depth: depth - radius * 2,
+        bevelEnabled: true,
+        bevelSegments: smoothness * 2,
+        steps: 1,
+        bevelSize: r,
+        bevelThickness: radius,
+        curveSegments: smoothness
+      });
+      geometry.center();
+      return geometry;
+    }
+
+    // A. Badan Botol Kaca Luar (MeshPhysicalMaterial Transparan + Refraksi)
+    const glassGeo = createRoundedBox(1.85, 2.35, 0.92, 0.16, 6);
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      metalness: 0.0,
+      roughness: 0.06,
+      transmission: 0.94,      // Efek kaca tembus pandang
+      thickness: 0.65,         // Ketebalan kaca untuk pembiasan cahaya
+      ior: 1.52,               // Indeks bias kaca kristal
+      reflectivity: 0.9,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05,
+      transparent: true
+    });
+    const glassBottle = new THREE.Mesh(glassGeo, glassMat);
+    glassBottle.position.y = -0.35;
+    glassBottle.castShadow = true;
+    bottleGroup.add(glassBottle);
+
+    // B. Dasar Kaca Tebal (Heavy Glass Base)
+    const baseGlassGeo = createRoundedBox(1.82, 0.32, 0.89, 0.12, 4);
+    const baseGlassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xeef2f5,
+      roughness: 0.08,
+      transmission: 0.88,
+      thickness: 0.9,
+      ior: 1.55,
+      transparent: true
+    });
+    const baseGlass = new THREE.Mesh(baseGlassGeo, baseGlassMat);
+    baseGlass.position.y = -1.36;
+    bottleGroup.add(baseGlass);
+
+    // C. Cairan Parfum di Dalam Botol
+    const liquidGeo = createRoundedBox(1.56, 1.82, 0.68, 0.1, 4);
+    const liquidMat = new THREE.MeshPhysicalMaterial({
+      color: COLOGNE_VARIANTS[0].liquidColor,
+      attenuationColor: new THREE.Color(COLOGNE_VARIANTS[0].liquidAttenuation),
+      attenuationDistance: 0.8,
+      roughness: 0.05,
+      transmission: 0.82,
+      thickness: 0.8,
+      ior: 1.36,
+      transparent: true
+    });
+    const liquidMesh = new THREE.Mesh(liquidGeo, liquidMat);
+    liquidMesh.position.y = -0.32;
+    bottleGroup.add(liquidMesh);
+
+    // D. Selang Atomizer di Dalam Cairan
+    const tubeCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0.75, 0),
+      new THREE.Vector3(0.04, 0.1, 0.02),
+      new THREE.Vector3(0.18, -1.12, 0.08)
+    ]);
+    const tubeGeo = new THREE.TubeGeometry(tubeCurve, 20, 0.022, 8, false);
+    const tubeMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      transmission: 0.7,
+      opacity: 0.55,
+      transparent: true,
+      roughness: 0.2
+    });
+    const atomizerTube = new THREE.Mesh(tubeGeo, tubeMat);
+    bottleGroup.add(atomizerTube);
+
+    // E. Label Depan Botol
+    const labelGeo = new THREE.PlaneGeometry(1.22, 1.52);
+    const labelMat = new THREE.MeshStandardMaterial({
+      map: labelTexture,
+      roughness: 0.35,
+      metalness: 0.15
+    });
+    const labelMesh = new THREE.Mesh(labelGeo, labelMat);
+    labelMesh.position.set(0, -0.34, 0.466);
+    bottleGroup.add(labelMesh);
+
+    // F. Leher Atomizer Metalik (Collar)
+    const collarGeo = new THREE.CylinderGeometry(0.28, 0.32, 0.28, 32);
+    const metalMat = new THREE.MeshStandardMaterial({
+      color: COLOGNE_VARIANTS[0].capColor,
+      roughness: 0.22,
+      metalness: 0.92
+    });
+    const collarMesh = new THREE.Mesh(collarGeo, metalMat);
+    collarMesh.position.y = 0.95;
+    bottleGroup.add(collarMesh);
+
+    // Cincin Dekoratif Leher
+    const neckRingGeo = new THREE.TorusGeometry(0.31, 0.025, 16, 48);
+    const neckRing = new THREE.Mesh(neckRingGeo, metalMat);
+    neckRing.rotation.x = Math.PI / 2;
+    neckRing.position.y = 0.84;
+    bottleGroup.add(neckRing);
+
+    // G. Tutup Botol Mewah (Cap dengan detail bevel)
+    const capGroup = new THREE.Group();
+    capGroup.position.y = 1.42;
+
+    const capMainGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.72, 48);
+    const capMain = new THREE.Mesh(capMainGeo, metalMat);
+    capMain.castShadow = true;
+    capGroup.add(capMain);
+
+    // Mahkota atas tutup botol
+    const capTopGeo = new THREE.CylinderGeometry(0.38, 0.42, 0.08, 48);
+    const capTop = new THREE.Mesh(capTopGeo, metalMat);
+    capTop.position.y = 0.40;
+    capGroup.add(capTop);
+
+    // Aksen cincin hitam di tengah tutup botol
+    const capBandGeo = new THREE.CylinderGeometry(0.426, 0.426, 0.08, 48);
+    const capBandMat = new THREE.MeshStandardMaterial({
+      color: 0x111114,
+      roughness: 0.4,
+      metalness: 0.5
+    });
+    const capBand = new THREE.Mesh(capBandGeo, capBandMat);
+    capBand.position.y = -0.22;
+    capGroup.add(capBand);
+
+    bottleGroup.add(capGroup);
+
+    // Partikel Debu Emas Halus Melayang di Sekitar Botol (Atmosfer Mewah)
+    const particlesCount = 45;
+    const posArray = new Float32Array(particlesCount * 3);
+    for (let i = 0; i < particlesCount * 3; i += 3) {
+      posArray[i] = (Math.random() - 0.5) * 5.5;
+      posArray[i + 1] = (Math.random() - 0.3) * 4.5;
+      posArray[i + 2] = (Math.random() - 0.5) * 5.5;
+    }
+    const particlesGeo = new THREE.BufferGeometry();
+    particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particlesMat = new THREE.PointsMaterial({
+      size: 0.035,
+      color: 0xd4af37,
+      transparent: true,
+      opacity: 0.55
+    });
+    const ambientParticles = new THREE.Points(particlesGeo, particlesMat);
+    scene.add(ambientParticles);
+
+    // ==========================================
+    // 5. ORBIT CONTROLS & ANIMASI KAMERA
+    // ==========================================
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.055;
+    controls.enablePan = false;
+    controls.minDistance = 3.8;
+    controls.maxDistance = 10.5;
+    controls.minPolarAngle = Math.PI / 4;
+    controls.maxPolarAngle = Math.PI / 1.85;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.4;
+
+    // Target transisi kamera halus
+    let targetCamPos = null;
+    let targetLookAt = new THREE.Vector3(0, 0, 0);
+
+    function setCameraPreset(preset) {
+      if (preset === 'front') {
+        targetCamPos = new THREE.Vector3(0, 0.4, 6.8);
+        targetLookAt = new THREE.Vector3(0, -0.1, 0);
+      } else if (preset === 'cap') {
+        targetCamPos = new THREE.Vector3(1.8, 2.2, 3.8);
+        targetLookAt = new THREE.Vector3(0, 1.1, 0);
+      } else if (preset === 'angle') {
+        targetCamPos = new THREE.Vector3(3.8, 1.8, 5.6);
+        targetLookAt = new THREE.Vector3(0, -0.1, 0);
+      }
+    }
+
+    // Hentikan transisi preset jika user menyentuh kontrol secara manual
+    controls.addEventListener('start', () => {
+      targetCamPos = null;
+    });
+
+    // ==========================================
+    // 6. SINKRONISASI UI E-COMMERCE & MODEL 3D
+    // ==========================================
+    let targetScale = new THREE.Vector3(1, 1, 1);
+
+    function update3DAppearance() {
+      const variant = COLOGNE_VARIANTS[state.variantIndex];
+      const sizeInfo = SIZE_PRICING[state.size];
+
+      // Update warna cairan & logam
+      liquidMat.color.setHex(variant.liquidColor);
+      liquidMat.attenuationColor.setHex(variant.liquidAttenuation);
+      metalMat.color.setHex(variant.capColor);
+      particlesMat.color.setHex(variant.capColor);
+
+      // Update cahaya ambient latar belakang HTML
+      document.getElementById('ambient-glow').style.background =
+        `radial-gradient(circle at 50% 48%, ${variant.glowColor} 0%, rgba(11, 11, 13, 0) 65%)`;
+
+      // Update skala botol (50ml vs 100ml)
+      targetScale.set(sizeInfo.scaleXZ, sizeInfo.scaleY, sizeInfo.scaleXZ);
+
+      // Update tekstur label 3D
+      updateBottleLabelTexture();
+    }
+
+    function renderVariantButtons() {
+      const containerEl = document.getElementById('variant-selector');
+      containerEl.innerHTML = COLOGNE_VARIANTS.map((v, idx) => {
+        const isActive = idx === state.variantIndex;
+        return `
+          <button type="button" data-idx="${idx}"
+            class="variant-card p-3 rounded-xl border text-left transition flex flex-col justify-between gap-2 ${
+              isActive
+                ? 'border-gold-500 bg-gold-500/12 shadow-md shadow-gold-500/10'
+                : 'border-white/10 bg-card hover:border-white/30'
+            }">
+            <div class="flex items-center justify-between w-full">
+              <span class="w-4 h-4 rounded-full border border-white/30 shadow-inner" style="background-color: ${v.swatchHex}"></span>
+              ${isActive ? '<span class="w-1.5 h-1.5 rounded-full bg-gold-400"></span>' : ''}
+            </div>
+            <div>
+              <p class="font-semibold text-xs text-cream leading-snug">${v.shortName}</p>
+              <p class="text-[10px] text-neutral-400 truncate mt-0.5">${v.family.split(' ')[0]}</p>
+            </div>
+          </button>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.variant-card').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.variantIndex = Number(btn.dataset.idx);
+          updateUI();
+          update3DAppearance();
+        });
+      });
+    }
+
+    function updateUI() {
+      const variant = COLOGNE_VARIANTS[state.variantIndex];
+      const sizeInfo = SIZE_PRICING[state.size];
+
+      renderVariantButtons();
+
+      // Teks Informasi Produk
+      document.getElementById('viewer-variant-label').textContent = variant.name;
+      document.getElementById('product-family').textContent = variant.family;
+      document.getElementById('product-title').textContent = variant.name;
+      document.getElementById('product-tagline').textContent = variant.tagline;
+      document.getElementById('product-description').textContent = variant.description;
+      document.getElementById('product-occasion').textContent = variant.occasion;
+
+      // Harga & Ukuran
+      document.getElementById('product-price').textContent = formatRupiah(sizeInfo.price);
+      document.getElementById('product-concentration').textContent = `Extrait de Cologne • ${state.size} ml`;
+
+      // Piramida Aroma
+      document.getElementById('notes-top').textContent = variant.notes.top;
+      document.getElementById('notes-heart').textContent = variant.notes.heart;
+      document.getElementById('notes-base').textContent = variant.notes.base;
+
+      // Statistik Bar
+      document.getElementById('stat-longevity-text').textContent = variant.stats.longevity.text;
+      document.getElementById('stat-longevity-bar').style.width = `${variant.stats.longevity.pct}%`;
+
+      document.getElementById('stat-sillage-text').textContent = variant.stats.sillage.text;
+      document.getElementById('stat-sillage-bar').style.width = `${variant.stats.sillage.pct}%`;
+
+      document.getElementById('stat-projection-text').textContent = variant.stats.projection.text;
+      document.getElementById('stat-projection-bar').style.width = `${variant.stats.projection.pct}%`;
+
+      // Highlight tombol ukuran
+      document.querySelectorAll('.size-btn').forEach(btn => {
+        const btnSize = Number(btn.dataset.size);
+        if (btnSize === state.size) {
+          btn.className = 'size-btn p-3.5 rounded-xl border-2 border-gold-500 bg-gold-500/10 transition text-left flex items-center justify-between';
+        } else {
+          btn.className = 'size-btn p-3.5 rounded-xl border border-white/15 bg-card hover:border-gold-500/60 transition text-left flex items-center justify-between';
+        }
+      });
+    }
+
+    // ==========================================
+    // 7. EVENT LISTENERS KONTROL & KERANJANG
+    // ==========================================
+    // Tombol Kamera
+    document.querySelectorAll('.cam-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.cam-btn').forEach(b => {
+          b.className = 'cam-btn px-3 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:text-white hover:bg-white/10 transition flex items-center gap-1.5';
+        });
+        btn.className = 'cam-btn px-3 py-2 rounded-xl text-xs font-medium bg-gold-500 text-obsidian transition flex items-center gap-1.5';
+        setCameraPreset(btn.dataset.cam);
+      });
+    });
+
+    // Toggle Auto Rotate
+    const rotateBtn = document.getElementById('toggle-rotate-btn');
+    rotateBtn.addEventListener('click', () => {
+      controls.autoRotate = !controls.autoRotate;
+      // Lucide mengganti tag <i> menjadi <svg> setelah createIcons() dijalankan
+      const icon = rotateBtn.querySelector('svg, i');
+      if (controls.autoRotate) {
+        rotateBtn.classList.add('text-gold-400');
+        rotateBtn.classList.remove('text-neutral-400');
+        if (icon) icon.classList.add('animate-spin');
+      } else {
+        rotateBtn.classList.remove('text-gold-400');
+        rotateBtn.classList.add('text-neutral-400');
+        if (icon) icon.classList.remove('animate-spin');
+      }
+    });
+
+    // Pilihan Ukuran Botol
+    document.querySelectorAll('.size-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.size = Number(btn.dataset.size);
+        updateUI();
+        update3DAppearance();
+      });
+    });
+
+    // Input Ukir Nama (Engraving) Real-Time
+    const engravingInput = document.getElementById('engraving-input');
+    const engravingCounter = document.getElementById('engraving-counter');
+    engravingInput.addEventListener('input', (e) => {
+      state.engraving = e.target.value;
+      engravingCounter.textContent = `${state.engraving.length}/16`;
+      updateBottleLabelTexture();
+      // Arahkan kamera ke depan saat user mengetik ukiran agar terlihat jelas
+      if (state.engraving.length === 1) {
+        setCameraPreset('front');
+      }
+    });
+
+    // Quantity Controls
+    const qtyValueEl = document.getElementById('qty-value');
+    document.getElementById('qty-minus').addEventListener('click', () => {
+      if (state.quantity > 1) {
+        state.quantity--;
+        qtyValueEl.textContent = state.quantity;
+      }
+    });
+    document.getElementById('qty-plus').addEventListener('click', () => {
+      if (state.quantity < 10) {
+        state.quantity++;
+        qtyValueEl.textContent = state.quantity;
+      }
+    });
+
+    // Toast Helper
+    let toastTimeout;
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-message').textContent = msg;
+      toast.classList.remove('opacity-0', '-translate-y-3');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-3');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2800);
+    }
+
+    // Shopping Cart Logic
+    const cartDrawer = document.getElementById('cart-drawer');
+    const cartBackdrop = document.getElementById('cart-backdrop');
+
+    function openCart() {
+      cartBackdrop.classList.remove('hidden');
+      setTimeout(() => {
+        cartBackdrop.classList.remove('opacity-0');
+        cartDrawer.classList.remove('translate-x-full');
+      }, 10);
+    }
+
+    function closeCart() {
+      cartBackdrop.classList.add('opacity-0');
+      cartDrawer.classList.add('translate-x-full');
+      setTimeout(() => {
+        cartBackdrop.classList.add('hidden');
+      }, 300);
+    }
+
+    document.getElementById('cart-btn').addEventListener('click', openCart);
+    document.getElementById('close-cart-btn').addEventListener('click', closeCart);
+    cartBackdrop.addEventListener('click', closeCart);
+
+    function renderCart() {
+      const containerEl = document.getElementById('cart-items-container');
+      const badgeEl = document.getElementById('cart-badge');
+      const totalEl = document.getElementById('cart-total-price');
+      const checkoutBtn = document.getElementById('checkout-btn');
+
+      const totalQty = state.cart.reduce((sum, item) => sum + item.qty, 0);
+      const totalPrice = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+      badgeEl.textContent = totalQty;
+      totalEl.textContent = formatRupiah(totalPrice);
+      checkoutBtn.disabled = state.cart.length === 0;
+
+      if (state.cart.length === 0) {
+        containerEl.innerHTML = `
+          <div class="h-full flex flex-col items-center justify-center text-center py-12 text-neutral-500">
+            <i data-lucide="sparkles" class="w-10 h-10 mb-3 text-neutral-600"></i>
+            <p class="font-serif text-xl text-neutral-300">Tas belanja masih kosong</p>
+            <p class="text-xs mt-1 max-w-xs">Pilih aroma favorit dan ukuran botol untuk memulai koleksi parfum Anda.</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      containerEl.innerHTML = state.cart.map((item, idx) => `
+        <div class="bg-obsidian/90 border border-white/10 rounded-2xl p-4 flex gap-3.5 items-start">
+          <div class="w-12 h-14 rounded-xl border border-white/15 flex items-center justify-center shrink-0" style="background-color: ${item.swatchHex}25">
+            <div class="w-5 h-8 rounded-sm border border-white/30" style="background-color: ${item.swatchHex}"></div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between gap-2">
+              <h4 class="font-serif text-lg font-semibold text-cream truncate">${item.name}</h4>
+              <button data-remove="${idx}" class="remove-item-btn text-neutral-500 hover:text-red-400 transition p-1">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <p class="text-xs text-neutral-400">Ukuran: ${item.size} ml • Qty: ${item.qty}</p>
+            ${item.engraving ? `<p class="text-[11px] text-gold-400 mt-1">Ukiran: "${item.engraving.toUpperCase()}"</p>` : ''}
+            <p class="text-sm font-semibold text-cream mt-2">${formatRupiah(item.price * item.qty)}</p>
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+
+      document.querySelectorAll('.remove-item-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.dataset.remove);
+          state.cart.splice(idx, 1);
+          renderCart();
+        });
+      });
+    }
+
+    document.getElementById('add-to-cart-btn').addEventListener('click', () => {
+      const variant = COLOGNE_VARIANTS[state.variantIndex];
+      const unitPrice = SIZE_PRICING[state.size].price;
+      const cleanEngraving = state.engraving.trim();
+
+      // Cek apakah item identik sudah ada di keranjang
+      const existing = state.cart.find(
+        i => i.id === variant.id && i.size === state.size && i.engraving === cleanEngraving
+      );
+
+      if (existing) {
+        existing.qty += state.quantity;
+      } else {
+        state.cart.push({
+          id: variant.id,
+          name: variant.name,
+          swatchHex: variant.swatchHex,
+          size: state.size,
+          engraving: cleanEngraving,
+          price: unitPrice,
+          qty: state.quantity
+        });
+      }
+
+      renderCart();
+      showToast(`${variant.shortName} (${state.size}ml) ditambahkan`);
+    });
+
+    // Checkout Simulation
+    const checkoutModal = document.getElementById('checkout-modal');
+    document.getElementById('checkout-btn').addEventListener('click', () => {
+      closeCart();
+      const randomRef = '#AN-' + Math.floor(10000 + Math.random() * 90000);
+      document.getElementById('order-ref').textContent = randomRef;
+      checkoutModal.classList.remove('hidden');
+      checkoutModal.classList.add('flex');
+      state.cart = [];
+      renderCart();
+    });
+
+    document.getElementById('close-modal-btn').addEventListener('click', () => {
+      checkoutModal.classList.add('hidden');
+      checkoutModal.classList.remove('flex');
+    });
+
+    // ==========================================
+    // 8. LOOP RENDER & RESPONSIVE RESIZE
+    // ==========================================
+    function onWindowResize() {
+      if (!container) return;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    }
+    window.addEventListener('resize', onWindowResize);
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+
+      // Animasi melayang sangat halus pada botol & partikel
+      bottleGroup.position.y = Math.sin(elapsed * 1.4) * 0.035;
+      ambientParticles.rotation.y = elapsed * 0.06;
+
+      // Interpolasi halus untuk perubahan ukuran botol (50ml <-> 100ml)
+      bottleGroup.scale.lerp(targetScale, 0.1);
+
+      // Interpolasi halus perpindahan sudut kamera preset
+      if (targetCamPos) {
+        camera.position.lerp(targetCamPos, 0.07);
+        controls.target.lerp(targetLookAt, 0.07);
+        if (camera.position.distanceTo(targetCamPos) < 0.04) {
+          targetCamPos = null;
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Inisialisasi Awal
+    window.onload = () => {
+      updateUI();
+      update3DAppearance();
+      renderCart();
+      onWindowResize();
+
+      // Sembunyikan overlay loading setelah frame pertama siap
+      const loader = document.getElementById('loader-overlay');
+      loader.classList.add('opacity-0');
+      setTimeout(() => loader.remove(), 500);
+
+      animate();
+    };
+  </script>
+</body>
+</html>
